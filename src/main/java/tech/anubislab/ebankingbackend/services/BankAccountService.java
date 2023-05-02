@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface BankAccountService {
 
-    Customer saveCustomer(Customer customer);
+    Customer saveCustomer(Customer customerDto);
     Customer getCustomeById(Long customerId) throws CustomerNotFoundException;
     CurrentAccount saveCurrentBankAccount(double initialBalance, double overDraft, Long customerId) throws CustomerNotFoundException;
     SavingAccount saveSavingBankAccount(double initialBalance, double interestRate, Long customerId) throws CustomerNotFoundException;

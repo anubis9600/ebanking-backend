@@ -90,6 +90,13 @@ public class BankAccountServiceImpl implements BankAccountService {
         return savedBankAccount;
     }
 
+    public CustomerDTO getCustomer(Long idCustomer) throws CustomerNotFoundException{
+        Customer customer = customerRepository.findById(idCustomer)
+                        .orElseThrow(()->new CustomerNotFoundException("Not found"));
+
+        return dtoMapper.fromCustomer(customer);
+    }
+
     @Override
     public List<CustomerDTO> listCustomers() {
         List<Customer> customers = customerRepository.findAll();
