@@ -1,6 +1,9 @@
 package tech.anubislab.ebankingbackend.services;
 
+import tech.anubislab.ebankingbackend.dtos.BankAccountDTO;
+import tech.anubislab.ebankingbackend.dtos.CurrentBankAccountDTO;
 import tech.anubislab.ebankingbackend.dtos.CustomerDTO;
+import tech.anubislab.ebankingbackend.dtos.SavingBankAccountDTO;
 import tech.anubislab.ebankingbackend.entities.BankAccount;
 import tech.anubislab.ebankingbackend.entities.CurrentAccount;
 import tech.anubislab.ebankingbackend.entities.Customer;
@@ -13,13 +16,16 @@ import java.util.List;
 
 public interface BankAccountService {
 
-    Customer saveCustomer(Customer customerDto);
+    CustomerDTO getCustomer(Long idCustomer) throws CustomerNotFoundException;
+    CustomerDTO saveCustomer(CustomerDTO customerDTO);
+    CustomerDTO updateCustomer(CustomerDTO customerDTO);
+    Long deleteCustomer(CustomerDTO customerDTO, Long customerId);
     Customer getCustomeById(Long customerId) throws CustomerNotFoundException;
-    CurrentAccount saveCurrentBankAccount(double initialBalance, double overDraft, Long customerId) throws CustomerNotFoundException;
-    SavingAccount saveSavingBankAccount(double initialBalance, double interestRate, Long customerId) throws CustomerNotFoundException;
+    CurrentBankAccountDTO saveCurrentBankAccount(double initialBalance, double overDraft, Long customerId) throws CustomerNotFoundException;
+    SavingBankAccountDTO saveSavingBankAccount(double initialBalance, double interestRate, Long customerId) throws CustomerNotFoundException;
     List<CustomerDTO> listCustomers();
-    BankAccount getBankAccount(String accountId) throws BankAccountNotFoundException;
-    List<BankAccount> bankAccountList();
+    BankAccountDTO getBankAccount(String accountId) throws BankAccountNotFoundException;
+    List<BankAccountDTO> bankAccountList();
     void debit(String accountId, double amount, String description) throws BankAccountNotFoundException, BalanceNotSufficientException;
     void credit(String accountId, double amount, String description) throws BankAccountNotFoundException, BalanceNotSufficientException;
     void transfer(String accountIdSource, String accountIdDestination, double amount) throws BankAccountNotFoundException, BalanceNotSufficientException;

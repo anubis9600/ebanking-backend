@@ -5,10 +5,18 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.aspectj.weaver.ast.Instanceof;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+
+import tech.anubislab.ebankingbackend.dtos.BankAccountDTO;
+import tech.anubislab.ebankingbackend.dtos.CurrentBankAccountDTO;
 import tech.anubislab.ebankingbackend.dtos.CustomerDTO;
+import tech.anubislab.ebankingbackend.dtos.SavingBankAccountDTO;
 import tech.anubislab.ebankingbackend.entities.*;
 import tech.anubislab.ebankingbackend.enums.OpertarionType;
 import tech.anubislab.ebankingbackend.exceptions.BalanceNotSufficientException;
@@ -44,9 +52,13 @@ public class BankAccountServiceImpl implements BankAccountService {
 //    Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
     @Override
-    public Customer saveCustomer(Customer customer) {
+    public CustomerDTO saveCustomer(CustomerDTO customerDTO) {
         log.info("Enregistrement d'un nouveau client");
-        return customerRepository.save(customer);
+        Customer customer = dtoMapper.fromCustomerDTO(customerDTO);
+        Customer savedCustomer = customerRepository.save(customer);
+        
+        log.info("Client enregistre");
+        return dtoMapper.fromCustomer(savedCustomer);
     }
 
     @Override
@@ -58,8 +70,10 @@ public class BankAccountServiceImpl implements BankAccountService {
     }
 
     @Override
-    public CurrentAccount saveCurrentBankAccount(double initialBalance, double overDraft, Long customerId) throws CustomerNotFoundException {
+    public CurrentBankAccountDTO saveCurrentBankAccount(double initialBalance, double overDraft, Long customerId) throws CustomerNotFoundException {
         Customer customer = getCustomeById(customerId);
+        
+        if(customer == null) throw new CustomerNotFoundException("Ce client n'existe pas");
 
         CurrentAccount currentAccount = new CurrentAccount();
         currentAccount.setId(UUID.randomUUID().toString());
@@ -69,11 +83,11 @@ public class BankAccountServiceImpl implements BankAccountService {
         currentAccount.setCustomer(customer);
 
         CurrentAccount savedBankAccount = bankAccountRepository.save(currentAccount);
-        return savedBankAccount;
+        return dtoMapper.fromCurrentAccount(savedBankAccount);
     }
 
     @Override
-    public SavingAccount saveSavingBankAccount(double initialBalance, double interestRate, Long customerId) throws CustomerNotFoundException {
+    public SavingBankAccountDTO saveSavingBankAccount(double initialBalance, double interestRate, Long customerId) throws CustomerNotFoundException {
 //        Customer customer = customerRepository.findById(customerId).orElse(null);
 //
 //        if (customer == null) throw new CustomerNotFoundException("Ce client n'existe pas");
@@ -87,12 +101,13 @@ public class BankAccountServiceImpl implements BankAccountService {
         savingAccount.setCustomer(customer);
 
         SavingAccount savedBankAccount = bankAccountRepository.save(savingAccount);
-        return savedBankAccount;
+        return dtoMapper.fromSavingAccount(savedBankAccount);
     }
 
+    @Override
     public CustomerDTO getCustomer(Long idCustomer) throws CustomerNotFoundException{
         Customer customer = customerRepository.findById(idCustomer)
-                        .orElseThrow(()->new CustomerNotFoundException("Not found"));
+                        .orElseThrow(()->new CustomerNotFoundException("Ce client n'existe pas"));
 
         return dtoMapper.fromCustomer(customer);
     }
@@ -103,32 +118,46 @@ public class BankAccountServiceImpl implements BankAccountService {
         List<CustomerDTO> customerDTOS = customers.stream()
                 .map(customer ->dtoMapper.fromCustomer(customer))
                 .collect(Collectors.toList());
-        /*
-        List<CustomerDTO> customerDTOS = new ArrayList<>();
-        for(Customer customer:customers){
-            CustomerDTO customerDTO = dtoMapper.fromCustomer(customer);
-            customerDTOS.add(customerDTO);
-        }
-        */
+
         return customerDTOS;
     }
 
     @Override
-    public BankAccount getBankAccount(String accountId) throws BankAccountNotFoundException {
+    public BankAccountDTO getBankAccount(String accountId) throws BankAccountNotFoundException {
         BankAccount bankAccount = bankAccountRepository.findById(accountId).
                 orElseThrow(()->new BankAccountNotFoundException("Ce compte bancaire n'existe pas"));
+                
+        if(bankAccount instanceof CurrentAccount){
+            CurrentAccount currentAccount = (CurrentAccount)bankAccount;
+            return dtoMapper.fromCurrentAccount(currentAccount);
+        }else {
+            SavingAccount savingAccount = (SavingAccount)bankAccount;
+            return dtoMapper.fromSavingAccount(savingAccount);
+        }
 
-        return bankAccount;
     }
 
     @Override
-    public List<BankAccount> bankAccountList() {
-        return bankAccountRepository.findAll();
+    public List<BankAccountDTO> bankAccountList() {
+        List<BankAccount> bankAccounts = bankAccountRepository.findAll();
+        List<BankAccountDTO> bankAccountDTOs = bankAccounts.stream().map(bankAccount ->{
+            if (bankAccount instanceof SavingAccount) {
+                SavingAccount savingAccount = (SavingAccount)bankAccount;
+                return dtoMapper.fromSavingAccount(savingAccount);
+            }else{
+                CurrentAccount currentAccount = (CurrentAccount)bankAccount;
+                return dtoMapper.fromCurrentAccount(currentAccount);
+            }
+        }).collect(Collectors.toList());
+
+        return bankAccountDTOs;
     }
 
     @Override
     public void debit(String accountId, double amount, String description) throws BankAccountNotFoundException, BalanceNotSufficientException {
-        BankAccount bankAccount = getBankAccount(accountId);
+        BankAccount bankAccount = bankAccountRepository.findById(accountId).
+                                    orElseThrow(()->new BankAccountNotFoundException("Ce compte bancaire n'existe pas"));
+
         if (bankAccount.getBalance() < amount) throw new BalanceNotSufficientException("Solde insuffisant");
         AccountOperation accountOperation = new AccountOperation();
         accountOperation.setType(OpertarionType.DEBIT);
@@ -145,7 +174,9 @@ public class BankAccountServiceImpl implements BankAccountService {
 
     @Override
     public void credit(String accountId, double amount, String description) throws BankAccountNotFoundException {
-        BankAccount bankAccount = getBankAccount(accountId);
+        BankAccount bankAccount = bankAccountRepository.findById(accountId).
+                                    orElseThrow(()->new BankAccountNotFoundException("Ce compte bancaire n'existe pas"));
+
         AccountOperation accountOperation = new AccountOperation();
         accountOperation.setType(OpertarionType.CREDIT);
         accountOperation.setAmount(amount);
@@ -164,4 +195,23 @@ public class BankAccountServiceImpl implements BankAccountService {
         debit(accountIdSource, amount, "Transfer vers "+accountIdDestination);
         credit(accountIdDestination, amount, "Transfer de "+accountIdSource);
     }
+
+    @Override
+    public CustomerDTO updateCustomer(CustomerDTO customerDTO) {
+        log.info("Mis a jour du client");
+        Customer customer = dtoMapper.fromCustomerDTO(customerDTO);
+        Customer savedCustomer = customerRepository.save(customer);
+
+        log.info("Client modifiee avec succes");
+        return dtoMapper.fromCustomer(savedCustomer);
+    }
+
+    @Override
+    public Long deleteCustomer(CustomerDTO customerDTO, @PathVariable("id") Long customerId){
+        customerRepository.deleteById(customerId);
+        log.info("Le client avec identifiant "+customerId+"a ete supprime");
+
+        return customerId;
+    }
+
 }
