@@ -3,9 +3,11 @@ package tech.anubislab.ebankingbackend.mappers;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
+import tech.anubislab.ebankingbackend.dtos.AccountOperationDTO;
 import tech.anubislab.ebankingbackend.dtos.CurrentBankAccountDTO;
 import tech.anubislab.ebankingbackend.dtos.CustomerDTO;
 import tech.anubislab.ebankingbackend.dtos.SavingBankAccountDTO;
+import tech.anubislab.ebankingbackend.entities.AccountOperation;
 import tech.anubislab.ebankingbackend.entities.CurrentAccount;
 import tech.anubislab.ebankingbackend.entities.Customer;
 import tech.anubislab.ebankingbackend.entities.SavingAccount;
@@ -57,6 +59,21 @@ public class BankAccountMapperImpl {
         currentAccount.setCustomer(fromCustomerDTO(currentBankAccountDTO.getCustomerDTO()));
 
         return currentAccount;
+    }
+
+    public AccountOperationDTO fromAccountOperation(AccountOperation accountOperation){
+        AccountOperationDTO accountOperationDTO = new AccountOperationDTO();
+        BeanUtils.copyProperties(accountOperation, accountOperationDTO);
+
+
+        return accountOperationDTO;
+    }
+
+    public AccountOperation fromAccountOperationDTO(AccountOperationDTO accountOperationDTO){
+        AccountOperation accountOperation = new AccountOperation();
+        BeanUtils.copyProperties(accountOperationDTO, accountOperation);
+ 
+        return accountOperation;
     }
 
 }

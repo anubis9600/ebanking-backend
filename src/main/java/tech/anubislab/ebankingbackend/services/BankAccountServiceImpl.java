@@ -5,14 +5,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.aspectj.weaver.ast.Instanceof;
+import org.springdoc.core.converters.models.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
 
+import tech.anubislab.ebankingbackend.dtos.AccountHistoryDTO;
+import tech.anubislab.ebankingbackend.dtos.AccountOperationDTO;
 import tech.anubislab.ebankingbackend.dtos.BankAccountDTO;
 import tech.anubislab.ebankingbackend.dtos.CurrentBankAccountDTO;
 import tech.anubislab.ebankingbackend.dtos.CustomerDTO;
@@ -88,9 +90,6 @@ public class BankAccountServiceImpl implements BankAccountService {
 
     @Override
     public SavingBankAccountDTO saveSavingBankAccount(double initialBalance, double interestRate, Long customerId) throws CustomerNotFoundException {
-//        Customer customer = customerRepository.findById(customerId).orElse(null);
-//
-//        if (customer == null) throw new CustomerNotFoundException("Ce client n'existe pas");
         Customer customer = getCustomeById(customerId);
 
         SavingAccount savingAccount = new SavingAccount();
@@ -191,9 +190,11 @@ public class BankAccountServiceImpl implements BankAccountService {
     }
 
     @Override
-    public void transfer(String accountIdSource, String accountIdDestination, double amount) throws BankAccountNotFoundException, BalanceNotSufficientException {
+    public String transfer(String accountIdSource, String accountIdDestination, double amount) throws BankAccountNotFoundException, BalanceNotSufficientException {
         debit(accountIdSource, amount, "Transfer vers "+accountIdDestination);
         credit(accountIdDestination, amount, "Transfer de "+accountIdSource);
+
+        return "Le tranfert effectue";
     }
 
     @Override
@@ -212,6 +213,35 @@ public class BankAccountServiceImpl implements BankAccountService {
         log.info("Le client avec identifiant "+customerId+"a ete supprime");
 
         return customerId;
+    }
+
+    /**
+     * @param accountId
+     * @return
+     */
+    @Override
+    public List<AccountOperationDTO> accountHistory(String accountId){
+        List<AccountOperation> accountOperations = accountOperationRepository.findBybankAccountId(accountId);
+        
+        return accountOperations.stream().map(op->dtoMapper.fromAccountOperation(op)).collect(Collectors.toList());
+    }
+
+    @Override
+    public AccountHistoryDTO getAccountHistory(String accountId, int page, int size) throws BankAccountNotFoundException {
+        BankAccount bankAccount = bankAccountRepository.findById(accountId).orElse(null);
+        if(bankAccount == null) throw new BankAccountNotFoundException("Ce compte n'existe pas ");
+        Page<AccountOperation> accountOperations = accountOperationRepository.findByBankAccountId(accountId,  PageRequest.of(page, size));
+        AccountHistoryDTO accountHistoryDTO = new AccountHistoryDTO();
+        List<AccountOperationDTO> collect = accountOperations.stream().map(op->dtoMapper.fromAccountOperation(op)).collect(Collectors.toList());
+        accountHistoryDTO.setAccountOperationDTOs(collect);
+        accountHistoryDTO.setAccountId(bankAccount.getId());
+        accountHistoryDTO.setBalance(bankAccount.getBalance());
+        accountHistoryDTO.setCurrentPage(page);
+        accountHistoryDTO.setPageSize(size);
+        accountHistoryDTO.setNameCustomer(bankAccount.getCustomer().getName());
+        accountHistoryDTO.setTotalPage(accountOperations.getTotalPages());
+
+        return accountHistoryDTO;
     }
 
 }

@@ -1,13 +1,12 @@
 package tech.anubislab.ebankingbackend.services;
 
+import tech.anubislab.ebankingbackend.dtos.AccountHistoryDTO;
+import tech.anubislab.ebankingbackend.dtos.AccountOperationDTO;
 import tech.anubislab.ebankingbackend.dtos.BankAccountDTO;
 import tech.anubislab.ebankingbackend.dtos.CurrentBankAccountDTO;
 import tech.anubislab.ebankingbackend.dtos.CustomerDTO;
 import tech.anubislab.ebankingbackend.dtos.SavingBankAccountDTO;
-import tech.anubislab.ebankingbackend.entities.BankAccount;
-import tech.anubislab.ebankingbackend.entities.CurrentAccount;
 import tech.anubislab.ebankingbackend.entities.Customer;
-import tech.anubislab.ebankingbackend.entities.SavingAccount;
 import tech.anubislab.ebankingbackend.exceptions.BalanceNotSufficientException;
 import tech.anubislab.ebankingbackend.exceptions.BankAccountNotFoundException;
 import tech.anubislab.ebankingbackend.exceptions.CustomerNotFoundException;
@@ -26,8 +25,10 @@ public interface BankAccountService {
     List<CustomerDTO> listCustomers();
     BankAccountDTO getBankAccount(String accountId) throws BankAccountNotFoundException;
     List<BankAccountDTO> bankAccountList();
+    List<AccountOperationDTO> accountHistory(String accountId);
+    AccountHistoryDTO getAccountHistory(String accountId, int page, int size) throws BankAccountNotFoundException;
     void debit(String accountId, double amount, String description) throws BankAccountNotFoundException, BalanceNotSufficientException;
     void credit(String accountId, double amount, String description) throws BankAccountNotFoundException, BalanceNotSufficientException;
-    void transfer(String accountIdSource, String accountIdDestination, double amount) throws BankAccountNotFoundException, BalanceNotSufficientException;
+    String transfer(String accountIdSource, String accountIdDestination, double amount) throws BankAccountNotFoundException, BalanceNotSufficientException;
 
 }
